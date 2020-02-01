@@ -81,6 +81,7 @@ def rollout(
         render_kwargs=None,
 ):
     """
+    采样单条path, 终止条件为：1）agent.terminal==1  或者  2）得到数量max_path_length的数据
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
      - observations
@@ -94,6 +95,7 @@ def rollout(
      - agent_infos
      - env_infos
     """
+    # 初始化环境
     if render_kwargs is None:
         render_kwargs = {}
     observations = []
@@ -102,12 +104,16 @@ def rollout(
     terminals = []
     agent_infos = []
     env_infos = []
+    # 环境和智能体 状态重置
     o = env.reset()
     agent.reset()
     next_o = None
     path_length = 0
     if render:
+        # 负责显示，输出
         env.render(**render_kwargs)
+
+    # 开始收集数据
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
@@ -119,8 +125,10 @@ def rollout(
         env_infos.append(env_info)
         path_length += 1
         if d:
+            # 单条path结束条件，如果agent结束了，path也结束
             break
         o = next_o
+        # 负责显示，输出
         if render:
             env.render(**render_kwargs)
 
@@ -131,6 +139,7 @@ def rollout(
     if len(observations.shape) == 1:
         observations = np.expand_dims(observations, 1)
         next_o = np.array([next_o])
+    # 聚合得到下时刻观测
     next_observations = np.vstack(
         (
             observations[1:, :],

@@ -4,6 +4,7 @@ import abc
 class ReplayBuffer(object, metaclass=abc.ABCMeta):
     """
     A class used to save and replay data.
+    原始 class
     """
 
     @abc.abstractmethod
@@ -74,6 +75,7 @@ class ReplayBuffer(object, metaclass=abc.ABCMeta):
         for path in paths:
             self.add_path(path)
 
+    # 用于实现interface的方法校验功能，如果子类不具备 @ abstractmethod的方法，那么就会抛出异常。
     @abc.abstractmethod
     def random_batch(self, batch_size):
         """

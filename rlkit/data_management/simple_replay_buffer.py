@@ -34,7 +34,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         for key, size in env_info_sizes.items():
             self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
         self._env_info_keys = env_info_sizes.keys()
-
+        # 存储当前buffer大小，和下一刻数据进入位置
         self._top = 0
         self._size = 0
 
@@ -48,17 +48,20 @@ class SimpleReplayBuffer(ReplayBuffer):
 
         for key in self._env_info_keys:
             self._env_infos[key][self._top] = env_info[key]
+        # 更新大小和下一刻存储位置
         self._advance()
 
     def terminate_episode(self):
         pass
 
     def _advance(self):
+        # 管理当前存储计数器
         self._top = (self._top + 1) % self._max_replay_buffer_size
         if self._size < self._max_replay_buffer_size:
             self._size += 1
 
     def random_batch(self, batch_size):
+        # 随机选取 batch (可以添加trick，来提高效率)
         indices = np.random.randint(0, self._size, batch_size)
         batch = dict(
             observations=self._observations[indices],
@@ -67,6 +70,7 @@ class SimpleReplayBuffer(ReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
         )
+        # 额外的meta，环境信息
         for key in self._env_info_keys:
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]
@@ -79,15 +83,18 @@ class SimpleReplayBuffer(ReplayBuffer):
         }
 
     def batch_env_info_dict(self, indices):
+        # 只提取meta信息（环境信息）
         return {
             key: self._env_infos[key][indices]
             for key in self._env_info_keys
         }
 
     def num_steps_can_sample(self):
+        # 返回size
         return self._size
 
     def get_diagnostics(self):
+        # 返回size
         return OrderedDict([
             ('size', self._size)
         ])

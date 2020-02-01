@@ -6,7 +6,7 @@ from rlkit.torch import pytorch_util as ptu
 
 def eval_np(module, *args, **kwargs):
     """
-    Eval this module with a numpy interface
+    Eval this module with a numpy interface, 返回numpy类型变量
 
     Same as a call to __call__ except all Variable input/outputs are
     replaced with numpy equivalents.
@@ -23,6 +23,11 @@ def eval_np(module, *args, **kwargs):
 
 
 def torch_ify(np_array_or_other):
+    '''
+    将numpy数据转化为torch数据
+    :param np_array_or_other:
+    :return:
+    '''
     if isinstance(np_array_or_other, np.ndarray):
         return ptu.from_numpy(np_array_or_other)
     else:
@@ -30,6 +35,11 @@ def torch_ify(np_array_or_other):
 
 
 def np_ify(tensor_or_other):
+    '''
+    将tensor变量转化为numpy
+    :param tensor_or_other:
+    :return:
+    '''
     if isinstance(tensor_or_other, torch.autograd.Variable):
         return ptu.get_numpy(tensor_or_other)
     else:

@@ -41,15 +41,16 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
 
+    # 开启训练
     def _train(self):
         if self.min_num_steps_before_training > 0:
             init_expl_paths = self.expl_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.min_num_steps_before_training,
+                self.max_path_length,  # 单次path最多step
+                self.min_num_steps_before_training, # 进行一回rollout， 最多step
                 discard_incomplete_paths=False,
             )
-            self.replay_buffer.add_paths(init_expl_paths)
-            self.expl_data_collector.end_epoch(-1)
+            self.replay_buffer.add_paths(init_expl_paths) # 在buffer里面添加初始化轨迹
+            self.expl_data_collector.end_epoch(-1)  # 这个-1没有意义 == None, 初始化 epoch_paths 存储器
 
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),
@@ -63,22 +64,28 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             gt.stamp('evaluation sampling')
 
             for _ in range(self.num_train_loops_per_epoch):
+                # 1 采集数据
                 new_expl_paths = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,
                     discard_incomplete_paths=False,
                 )
                 gt.stamp('exploration sampling', unique=False)
-
+                # 2 送入buffer
                 self.replay_buffer.add_paths(new_expl_paths)
                 gt.stamp('data storing', unique=False)
 
+                # 3 开始训练
+                # 3.0 训练模式
                 self.training_mode(True)
+                # 采集一回（epoch, rollout, paths, many steps）数据，进行多步训练
                 for _ in range(self.num_trains_per_train_loop):
+                    # 3.1 buffer 中采集数据
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
+                    # 3.2 训练
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
-
+            # 打印单epoch信息
             self._end_epoch(epoch)

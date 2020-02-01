@@ -20,6 +20,18 @@ from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 
 def experiment(variant):
+    '''
+    1. 建立实验环境（eval, expl）
+    2. 确立输入，输出维度，建立qf函数，policy函数
+    3. 复制target qf和 target policy 函数
+    4. 对于评估构建path collector
+    5. 对于训练实验，构建探索策略、path collector、replay buffer
+    6. 构建 DDPGTrainer （qf, policy）
+    7. algorithm (包括trainer, env, replay buffer, path collector.以及用于评价部分)
+    8. 开始训练
+    :param variant: config parameter
+    :return:
+    '''
     eval_env = NormalizedBoxEnv(HalfCheetahEnv())
     expl_env = NormalizedBoxEnv(HalfCheetahEnv())
     # Or for a specific version:
@@ -37,15 +49,19 @@ def experiment(variant):
         output_size=action_dim,
         **variant['policy_kwargs']
     )
+    # 利用copy
     target_qf = copy.deepcopy(qf)
     target_policy = copy.deepcopy(policy)
+    # 评估
     eval_path_collector = MdpPathCollector(eval_env, policy)
+    # 实验 （探索策略、path收集、replay buffer）
     exploration_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=OUStrategy(action_space=expl_env.action_space),
         policy=policy,
     )
     expl_path_collector = MdpPathCollector(expl_env, exploration_policy)
     replay_buffer = EnvReplayBuffer(variant['replay_buffer_size'], expl_env)
+
     trainer = DDPGTrainer(
         qf=qf,
         target_qf=target_qf,
@@ -62,7 +78,9 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['algorithm_kwargs']
     )
+    # 转化变量格式
     algorithm.to(ptu.device)
+
     algorithm.train()
 
 

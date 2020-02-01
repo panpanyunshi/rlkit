@@ -26,6 +26,7 @@ class LayerNorm(nn.Module):
         self.center = center
         self.scale = scale
         self.eps = eps
+        # 这一步没什么用处？
         if self.scale:
             self.scale_param = nn.Parameter(torch.ones(features))
         else:

@@ -50,10 +50,12 @@ class OUStrategy(RawExplorationStrategy):
         return self.state
 
     def get_action_from_raw_action(self, action, t=0, **kwargs):
+        # t 为当前步数（训练步数？执行步数？）
         ou_state = self.evolve_state()
         self.sigma = (
             self._max_sigma
             - (self._max_sigma - self._min_sigma)
             * min(1.0, t * 1.0 / self._decay_period)
         )
+        # 添加行为噪声，且约束action大小
         return np.clip(action + ou_state, self.low, self.high)

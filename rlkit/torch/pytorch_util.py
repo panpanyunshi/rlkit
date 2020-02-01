@@ -15,6 +15,12 @@ def copy_model_params_from_to(source, target):
 
 
 def fanin_init(tensor):
+    '''
+    输入tensor，初始化
+    每一个元素初始化为\mu(-c, c), where c = 1/prod(size[1:])
+    :param tensor:
+    :return:
+    '''
     size = tensor.size()
     if len(size) == 2:
         fan_in = size[0]

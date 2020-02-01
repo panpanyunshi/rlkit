@@ -15,10 +15,19 @@ from rlkit.torch.modules import LayerNorm
 
 
 def identity(x):
+    '''
+    自定义激活函数
+    :param x:
+    :return:
+    '''
     return x
 
 
 class Mlp(nn.Module):
+    '''
+    multi-layer preceptron 前向结构
+    前向线性结构，激活函数（中间层，输出层），初始化
+    '''
     def __init__(
             self,
             hidden_sizes,
@@ -47,10 +56,13 @@ class Mlp(nn.Module):
         in_size = input_size
 
         for i, next_size in enumerate(hidden_sizes):
+            # 搭建网络
             fc = nn.Linear(in_size, next_size)
             in_size = next_size
+            # 构建初始话权重
             hidden_init(fc.weight)
             fc.bias.data.fill_(b_init_value)
+            # 在模块中存储每一层信息
             self.__setattr__("fc{}".format(i), fc)
             self.fcs.append(fc)
 
@@ -58,7 +70,7 @@ class Mlp(nn.Module):
                 ln = LayerNorm(next_size)
                 self.__setattr__("layer_norm{}".format(i), ln)
                 self.layer_norms.append(ln)
-
+        # 搭建最后一层，并初始化
         self.last_fc = nn.Linear(in_size, output_size)
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
@@ -68,8 +80,10 @@ class Mlp(nn.Module):
         for i, fc in enumerate(self.fcs):
             h = fc(h)
             if self.layer_norm and i < len(self.fcs) - 1:
+                # 状态归一化
                 h = self.layer_norms[i](h)
             h = self.hidden_activation(h)
+        # 最后一层
         preactivation = self.last_fc(h)
         output = self.output_activation(preactivation)
         if return_preactivations:
@@ -84,6 +98,7 @@ class FlattenMlp(Mlp):
     """
 
     def forward(self, *inputs, **kwargs):
+        # 把列拼在一起， （state, action）
         flat_inputs = torch.cat(inputs, dim=1)
         return super().forward(flat_inputs, **kwargs)
 
@@ -103,15 +118,18 @@ class MlpPolicy(Mlp, Policy):
         self.obs_normalizer = obs_normalizer
 
     def forward(self, obs, **kwargs):
+        # 是否对输入也进行归一化处理
         if self.obs_normalizer:
             obs = self.obs_normalizer.normalize(obs)
         return super().forward(obs, **kwargs)
 
     def get_action(self, obs_np):
+        # 在数组索引中，加入None就相当于在对应维度加一维
         actions = self.get_actions(obs_np[None])
         return actions[0, :], {}
 
     def get_actions(self, obs):
+        # numpy(观测) 得到 numpy (action)
         return eval_np(self, obs)
 
 
@@ -120,4 +138,5 @@ class TanhMlpPolicy(MlpPolicy):
     A helper class since most policies have a tanh output activation.
     """
     def __init__(self, *args, **kwargs):
+        # 最后一层为tanh， 限制action为 [-1, 1]
         super().__init__(*args, output_activation=torch.tanh, **kwargs)

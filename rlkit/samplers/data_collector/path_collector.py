@@ -43,28 +43,31 @@ class MdpPathCollector(PathCollector):
                 self._env,
                 self._policy,
                 max_path_length=max_path_length_this_loop,
-            )
+            )   # 单条轨迹数据
             path_len = len(path['actions'])
             if (
-                    path_len != max_path_length
-                    and not path['terminals'][-1]
-                    and discard_incomplete_paths
+                    path_len != max_path_length  # 单条轨迹采集数量是否够数
+                    and not path['terminals'][-1]  # 末端状态是否terminal==1
+                    and discard_incomplete_paths # 是否抛弃该条轨迹， 这条轨迹结束原因不明，可能发生了环境bug
             ):
                 break
             num_steps_collected += path_len
-            paths.append(path)
+            paths.append(path)  # 存储多条轨迹
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
-        self._epoch_paths.extend(paths)
+        self._epoch_paths.extend(paths) # 轨迹队列里存储 最多 _max_num_epoch_paths_saved 条轨迹
+        # 返回本回生成的多条轨迹
         return paths
 
     def get_epoch_paths(self):
         return self._epoch_paths
 
     def end_epoch(self, epoch):
+        # 用于存储paths的队列容器
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
     def get_diagnostics(self):
+        # 显示输出当前存储的信息状态
         path_lens = [len(path['actions']) for path in self._epoch_paths]
         stats = OrderedDict([
             ('num steps total', self._num_steps_total),
@@ -78,6 +81,7 @@ class MdpPathCollector(PathCollector):
         return stats
 
     def get_snapshot(self):
+        # 显示collector信息
         return dict(
             env=self._env,
             policy=self._policy,

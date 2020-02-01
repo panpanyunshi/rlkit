@@ -8,6 +8,9 @@ from collections import deque
 
 
 class ProxyEnv(Env):
+    '''
+    进一步封装Env, 继承其属性值，没有添加功能
+    '''
     def __init__(self, wrapped_env):
         self._wrapped_env = wrapped_env
         self.action_space = self._wrapped_env.action_space
@@ -34,6 +37,7 @@ class ProxyEnv(Env):
         if hasattr(self.wrapped_env, "terminate"):
             self.wrapped_env.terminate()
 
+    # 用于继承基类属性
     def __getattr__(self, attr):
         if attr == '_wrapped_env':
             raise AttributeError()
@@ -113,9 +117,9 @@ class DiscretizeEnv(ProxyEnv, Env):
 
 class NormalizedBoxEnv(ProxyEnv):
     """
-    Normalize action to in [-1, 1].
+    Normalize action to in [-1, 1]. 动作必须归一化
 
-    Optionally normalize observations and scale reward.
+    Optionally normalize observations and scale reward. （可选择）
     """
 
     def __init__(
@@ -126,6 +130,7 @@ class NormalizedBoxEnv(ProxyEnv):
             obs_std=None,
     ):
         ProxyEnv.__init__(self, env)
+        # 判断是否需要normalize, 对state进行归一化
         self._should_normalize = not (obs_mean is None and obs_std is None)
         if self._should_normalize:
             if obs_mean is None:
@@ -136,13 +141,21 @@ class NormalizedBoxEnv(ProxyEnv):
                 obs_std = np.ones_like(env.observation_space.low)
             else:
                 obs_std = np.array(obs_std)
+
         self._reward_scale = reward_scale
         self._obs_mean = obs_mean
         self._obs_std = obs_std
+        # 建立新行为空间 [-1, 1]
         ub = np.ones(self._wrapped_env.action_space.shape)
         self.action_space = Box(-1 * ub, ub)
 
     def estimate_obs_stats(self, obs_batch, override_values=False):
+        '''
+        输入之前采集的batck数据，粗略估计mean和std
+        :param obs_batch:
+        :param override_values:
+        :return:
+        '''
         if self._obs_mean is not None and not override_values:
             raise Exception("Observation mean and std already set. To "
                             "override, set override_values to True.")
@@ -160,8 +173,10 @@ class NormalizedBoxEnv(ProxyEnv):
 
         wrapped_step = self._wrapped_env.step(scaled_action)
         next_obs, reward, done, info = wrapped_step
+        # 对返回的观测 归一化
         if self._should_normalize:
             next_obs = self._apply_normalize_obs(next_obs)
+        # reward 可在这一步适当加权
         return next_obs, reward * self._reward_scale, done, info
 
     def __str__(self):

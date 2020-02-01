@@ -91,6 +91,7 @@ class DDPGTrainer(TorchTrainer):
             )
             q_output = self.qf(obs, policy_actions)
             raw_policy_loss = - q_output.mean()
+            # 带 pre_activation 的误差表示 （相当于约束u^2 ??）
             policy_loss = (
                     raw_policy_loss +
                     pre_activation_policy_loss * self.policy_pre_activation_weight
@@ -98,27 +99,32 @@ class DDPGTrainer(TorchTrainer):
         else:
             policy_actions = self.policy(obs)
             q_output = self.qf(obs, policy_actions)
+            # Q函数最大
             raw_policy_loss = policy_loss = - q_output.mean()
 
         """
         Critic operations.
         """
-
+        # target 网络用来 分离 预测功能（t+1） 和 评估loss功能， 使得训练过程更加稳定
+        # （？？预测更容易抖振，所以平滑target网络参数）
         next_actions = self.target_policy(next_obs)
         # speed up computation by not backpropping these gradients
-        next_actions.detach()
+        next_actions.detach()   # 不对a_{t+1}进行求导
         target_q_values = self.target_qf(
             next_obs,
             next_actions,
         )
         q_target = rewards + (1. - terminals) * self.discount * target_q_values
-        q_target = q_target.detach()
+        q_target = q_target.detach()  # 不对Q_{a_t+1, s_t+1}求导
         q_target = torch.clamp(q_target, self.min_q_value, self.max_q_value)
+
         q_pred = self.qf(obs, actions)
         bellman_errors = (q_pred - q_target) ** 2
+        # 光滑损失函数
         raw_qf_loss = self.qf_criterion(q_pred, q_target)
 
         if self.qf_weight_decay > 0:
+            # 添加正则化loss
             reg_loss = self.qf_weight_decay * sum(
                 torch.sum(param ** 2)
                 for param in self.qf.regularizable_parameters()
@@ -130,7 +136,7 @@ class DDPGTrainer(TorchTrainer):
         """
         Update Networks
         """
-
+        # 优化参数， policy, Q函数
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
@@ -139,6 +145,7 @@ class DDPGTrainer(TorchTrainer):
         qf_loss.backward()
         self.qf_optimizer.step()
 
+        # 更新target 网络
         self._update_target_networks()
 
         """

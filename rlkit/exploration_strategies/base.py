@@ -2,7 +2,7 @@ import abc
 
 from rlkit.policies.base import ExplorationPolicy
 
-
+# 基类
 class ExplorationStrategy(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def get_action(self, t, observation, policy, **kwargs):
