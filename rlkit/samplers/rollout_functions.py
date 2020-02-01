@@ -32,25 +32,32 @@ def multitask_rollout(
         env.render(**render_kwargs)
     goal = o[desired_goal_key]
     while path_length < max_path_length:
-        dict_obs.append(o)
+        dict_obs.append(o) # 全部状态
+        # 部分可观测，提取可观测状态
         if observation_key:
             o = o[observation_key]
+        #  action 与 goal 和 state 相关了
         new_obs = np.hstack((o, goal))
         a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         if render:
             env.render(**render_kwargs)
-        observations.append(o)
+        observations.append(o) # 存储可观测状态
         rewards.append(r)
         terminals.append(d)
         actions.append(a)
-        next_observations.append(next_o)
         dict_next_obs.append(next_o)
+        # next_observations.append(next_o_key)  # 存储全部状态 ？ 有问题
+        if observation_key:
+            next_o_key = next_o[observation_key]
+        next_observations.append(next_o_key) # 修改
+
         agent_infos.append(agent_info)
         env_infos.append(env_info)
         path_length += 1
         if d:
             break
+        # 这里的 o 是全部状态
         o = next_o
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -61,15 +68,15 @@ def multitask_rollout(
         observations = dict_obs
         next_observations = dict_next_obs
     return dict(
-        observations=observations,
+        observations=observations, # 可观测状态
         actions=actions,
         rewards=np.array(rewards).reshape(-1, 1),
-        next_observations=next_observations,
+        next_observations=next_observations, # 下一时刻全部状态
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
         env_infos=env_infos,
-        goals=np.repeat(goal[None], path_length, 0),
-        full_observations=dict_obs,
+        goals=np.repeat(goal[None], path_length, 0), # 存储goal信息
+        full_observations=dict_obs, # 全部状态
     )
 
 
